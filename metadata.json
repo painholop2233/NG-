@@ -1,0 +1,8 @@
+{
+  "name": "Henry Hub Gas Weather & Intraday ",
+  "description": "Терминал анализа погоды GFS/ECMWF для северо-востока и центра США, котировок фьючерсов Henry Hub. запасов EIA, экспорта СПГ и внутридневного прогноза цен на газ.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
