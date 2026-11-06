@@ -268,10 +268,30 @@ export const PriceChart: React.FC<PriceChartProps> = ({
           </div>
         )}
 
-        <div className="relative w-full overflow-hidden bg-slate-950 border border-slate-800 rounded-lg p-2">
+        <div className="relative w-full overflow-hidden bg-slate-950 border border-slate-800 rounded-lg p-2 min-h-[300px]">
           {isLoading && (
             <div className="absolute inset-0 bg-slate-950/80 flex items-center justify-center z-10 font-mono text-xs text-blue-400">
-              Загрузка свечей Т-Инвестиций...
+              <span className="animate-pulse">Загрузка свечей Т-Инвестиций...</span>
+            </div>
+          )}
+
+          {!isLoading && validCandles.length === 0 && (
+            <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center z-10 font-mono text-xs text-slate-400 gap-2 p-4 text-center">
+              <Activity className="w-8 h-8 text-amber-500/80 animate-pulse" />
+              <span className="text-white font-semibold">
+                Нет свечей за последние 48 часов для {selectedTicker || 'выбранного контракта'}
+              </span>
+              <span className="text-slate-500 text-[11px]">
+                Рынок закрыт или по дальнему контракту не было сделок на MOEX
+              </span>
+              {instruments.length > 0 && (
+                <button
+                  onClick={() => onSelectTicker(instruments[0].ticker)}
+                  className="mt-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs transition-colors cursor-pointer"
+                >
+                  Переключить на активный контракт {instruments[0].ticker}
+                </button>
+              )}
             </div>
           )}
 

@@ -36,12 +36,11 @@ import { StorageSection } from './components/StorageSection';
 import { ProductionSection } from './components/ProductionSection';
 import { LngTerminalSection } from './components/LngTerminalSection';
 import { DataProvenanceModal } from './components/DataProvenanceModal';
-import { SheetsTrackingSection } from './components/SheetsTrackingSection';
 
 export default function App() {
   const [instruments, setInstruments] = useState<FutureInstrument[]>([]);
   const [prices, setPrices] = useState<FuturePrice[]>([]);
-  const [selectedTicker, setSelectedTicker] = useState<string>('NGV6');
+  const [selectedTicker, setSelectedTicker] = useState<string>('');
   const [candles, setCandles] = useState<Candle[]>([]);
   const [candleInterval, setCandleInterval] = useState<string>('CANDLE_INTERVAL_15_MIN');
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -51,7 +50,7 @@ export default function App() {
   const [consumption, setConsumption] = useState<ConsumptionData | null>(null);
   const [forecast, setForecast] = useState<IntradayForecast | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'forecast' | 'sheets' | 'weather' | 'chart' | 'storage' | 'production' | 'lng'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'forecast' | 'weather' | 'chart' | 'storage' | 'production' | 'lng'>('overview');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(false);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
@@ -118,10 +117,16 @@ export default function App() {
         fetch('/api/eia/consumption').then((r) => r.json()),
       ]);
 
+      let currentActiveTicker = selectedTicker;
+
       if (futuresRes.status === 'fulfilled' && futuresRes.value.instruments) {
-        setInstruments(futuresRes.value.instruments);
-        if (!selectedTicker && futuresRes.value.instruments.length > 0) {
-          setSelectedTicker(futuresRes.value.instruments[0].ticker);
+        const instList = futuresRes.value.instruments;
+        setInstruments(instList);
+        if (instList.length > 0) {
+          if (!currentActiveTicker || !instList.some((i: any) => i.ticker === currentActiveTicker)) {
+            currentActiveTicker = instList[0].ticker;
+            setSelectedTicker(currentActiveTicker);
+          }
         }
       }
 
@@ -153,7 +158,7 @@ export default function App() {
       const forecastRes = await fetch('/api/forecast/intraday', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker: selectedTicker }),
+        body: JSON.stringify({ ticker: currentActiveTicker || 'NGX6' }),
       });
       if (forecastRes.ok) {
         const forecastData = await forecastRes.json();
@@ -170,32 +175,46 @@ export default function App() {
   }, [selectedTicker]);
 
   // Load candles whenever ticker or interval changes
-  const loadCandles = useCallback(async (ticker: string, interval: string) => {
-    const inst = instruments.find((i) => i.ticker === ticker);
-    const instrumentId = inst?.uid || inst?.figi;
-    if (!instrumentId) return;
-
-    setIsLoadingCandles(true);
-    try {
-      const res = await fetch(`/api/tinkoff/candles?instrumentId=${instrumentId}&interval=${interval}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCandles(data.candles || []);
+  const loadCandles = useCallback(
+    async (ticker: string, interval: string) => {
+      let inst = instruments.find((i) => i.ticker === ticker);
+      if (!inst && instruments.length > 0) {
+        inst = instruments[0];
       }
-    } catch (e) {
-      console.error('Error loading candles:', e);
-    } finally {
-      setIsLoadingCandles(false);
-    }
-  }, [instruments]);
+      const instrumentId = inst?.uid || inst?.figi || ticker;
+      if (!instrumentId) return;
+
+      setIsLoadingCandles(true);
+      try {
+        const res = await fetch(
+          `/api/tinkoff/candles?instrumentId=${encodeURIComponent(instrumentId)}&interval=${interval}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setCandles(data.candles || []);
+        }
+      } catch (e) {
+        console.error('Error loading candles:', e);
+      } finally {
+        setIsLoadingCandles(false);
+      }
+    },
+    [instruments]
+  );
 
   useEffect(() => {
     loadAllData();
   }, []);
 
   useEffect(() => {
-    if (selectedTicker && instruments.length > 0) {
-      loadCandles(selectedTicker, candleInterval);
+    if (instruments.length > 0) {
+      const active = instruments.some((i) => i.ticker === selectedTicker)
+        ? selectedTicker
+        : instruments[0].ticker;
+      if (active !== selectedTicker) {
+        setSelectedTicker(active);
+      }
+      loadCandles(active, candleInterval);
     }
   }, [selectedTicker, candleInterval, instruments, loadCandles]);
 
@@ -228,7 +247,6 @@ export default function App() {
   const tabs = [
     { id: 'overview', label: 'Сводный терминал (All-in-One)' },
     { id: 'forecast', label: 'Внутридневной прогноз' },
-    { id: 'sheets', label: 'Google Таблица (1h Статистика)' },
     { id: 'weather', label: 'Погода GFS/ECMWF (2-4 дня)' },
     { id: 'chart', label: 'График Т-Инвестиции' },
     { id: 'storage', label: 'Запасы EIA' },
@@ -315,11 +333,18 @@ export default function App() {
             </div>
           </div>
 
-          {/* Card 2: Intraday Signal */}
+          {/* Card 2: Intraday Signal & Trade Parameters */}
           <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-3">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
-              Внутридневной вектор
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
+                Внутридневной вектор
+              </span>
+              {forecast?.tradePlan && (
+                <span className="text-[10px] font-mono text-cyan-400 font-semibold">
+                  R:R {forecast.tradePlan.riskRewardRatio}:1
+                </span>
+              )}
+            </div>
             <div
               className={`text-base font-bold mt-0.5 flex items-center gap-1 ${
                 forecast?.signal === 'BULLISH'
@@ -334,9 +359,20 @@ export default function App() {
               {forecast?.signal === 'NEUTRAL' && <Minus className="w-4 h-4" />}
               <span className="truncate">{forecast?.signalRussian || 'РАСЧЁТ'}</span>
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">
-              Цель: <strong className="text-white">${forecast?.targetPrice.toFixed(3) || '—'}</strong>
+            <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+              <span>Цель: <strong className="text-white">${forecast?.targetPrice.toFixed(3) || '—'}</strong></span>
+              {forecast?.tradePlan && (
+                <span className="text-emerald-400 font-mono font-bold">
+                  TP ${forecast.tradePlan.takeProfit.toFixed(3)}
+                </span>
+              )}
             </div>
+            {forecast?.tradePlan && (
+              <div className="text-[9px] text-slate-500 mt-0.5 flex items-center justify-between font-mono pt-1 border-t border-slate-800/60">
+                <span>Вход: <strong className="text-slate-300">${forecast.tradePlan.entryPrice.toFixed(3)}</strong></span>
+                <span className="text-rose-400 font-semibold">SL: ${forecast.tradePlan.stopLoss.toFixed(3)}</span>
+              </div>
+            )}
           </div>
 
           {/* Card 3: Weather Northeast 2-4D */}
@@ -423,17 +459,10 @@ export default function App() {
               onSelectTicker={handleSelectTicker}
             />
 
-            {/* 2. Google Sheets Hourly Forecast Logging & 1h Outcome Tracking */}
-            <SheetsTrackingSection
-              forecast={forecast}
-              prices={prices}
-              selectedTicker={selectedTicker}
-            />
-
-            {/* 3. Weather Models Comparison: GFS vs ECMWF (2-4 Days) */}
+            {/* 2. Weather Models Comparison: GFS vs ECMWF (2-4 Days) */}
             <WeatherAnalysis weather={weather} />
 
-            {/* 4. Real Price Candlestick Chart from T-Invest & EIA Seasonal Demand Overlay */}
+            {/* 3. Real Price Candlestick Chart from T-Invest & EIA Seasonal Demand Overlay */}
             <PriceChart
               candles={candles}
               selectedTicker={selectedTicker}
@@ -446,10 +475,10 @@ export default function App() {
               consumption={consumption}
             />
 
-            {/* 5. EIA Storage & Withdrawals */}
+            {/* 4. EIA Storage & Withdrawals */}
             <StorageSection storage={storage} />
 
-            {/* 6. Production & LNG Terminal Nominations Grid (2-column layout) */}
+            {/* 5. Production & LNG Terminal Nominations Grid (2-column layout) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ProductionSection production={production} />
               <LngTerminalSection lngData={lngData} />
@@ -470,16 +499,6 @@ export default function App() {
             />
             {/* Weather context for forecast */}
             <WeatherAnalysis weather={weather} />
-          </div>
-        )}
-
-        {activeTab === 'sheets' && (
-          <div className="space-y-6">
-            <SheetsTrackingSection
-              forecast={forecast}
-              prices={prices}
-              selectedTicker={selectedTicker}
-            />
           </div>
         )}
 

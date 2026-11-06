@@ -199,6 +199,30 @@ export interface ForecastFactor {
   detail: string;
 }
 
+export interface TradeParameters {
+  action: 'BUY' | 'SELL' | 'WAIT';
+  actionRussian: string;
+  entryPrice: number;
+  entryRange: {
+    low: number;
+    high: number;
+  };
+  entryCondition: string;
+  takeProfit: number;
+  takeProfit2: number;
+  takeProfitDelta: number;
+  takeProfitPercent: number;
+  stopLoss: number;
+  stopLossDelta: number;
+  stopLossPercent: number;
+  stopLossTicks: number;
+  riskRewardRatio: number;
+  exitHorizon: string;
+  exitCondition: string;
+  trailingStopRule: string;
+  riskManagementNote: string;
+}
+
 export interface IntradayForecast {
   signal: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   signalRussian: string;
@@ -214,6 +238,7 @@ export interface IntradayForecast {
     low: number;
     high: number;
   };
+  tradePlan: TradeParameters;
   keyCatalysts: string[];
   factors: ForecastFactor[];
   scenarioInputs: {

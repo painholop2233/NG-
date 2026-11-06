@@ -15,6 +15,9 @@ import {
   X,
   CheckCircle2,
   BarChart2,
+  Target,
+  ShieldAlert,
+  ArrowUpRight,
 } from 'lucide-react';
 import { IntradayForecast, FutureInstrument, FuturePrice } from '../types';
 
@@ -204,6 +207,159 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Trade Parameters & Risk Execution Section */}
+      {forecast.tradePlan && (
+        <div className="px-6 pt-5 pb-2 border-b border-slate-800/80 bg-slate-950/40">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 rounded-lg bg-blue-950 border border-blue-800 text-blue-400">
+                <Target className="w-4 h-4" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
+                    Параметры Сделки и Управление Риском
+                  </h3>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold border ${
+                      forecast.tradePlan.action === 'BUY'
+                        ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                        : forecast.tradePlan.action === 'SELL'
+                        ? 'bg-rose-950 text-rose-300 border-rose-700'
+                        : 'bg-amber-950 text-amber-300 border-amber-700'
+                    }`}
+                  >
+                    {forecast.tradePlan.actionRussian}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Расчётные уровни входа, фиксации прибыли (TP1 / TP2), защитного стопа (SL) и тайминга выхода для фьючерса {activeTicker}
+                </p>
+              </div>
+            </div>
+
+            {/* Risk/Reward Badge */}
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                <span className="text-slate-400 text-[11px]">Соотношение R:R:</span>
+                <span className="text-white font-bold text-sm">
+                  {forecast.tradePlan.riskRewardRatio} : 1
+                </span>
+                <span className="text-[10px] text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-1.5 py-0.2 rounded font-semibold">
+                  Прибыль / Риск
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Execution Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-3 font-mono">
+            {/* 1. Entry Point */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between hover:border-slate-700 transition-colors">
+              <div>
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                  <span className="uppercase text-[10px] tracking-wider text-slate-300 flex items-center gap-1 font-semibold">
+                    <ArrowUpRight className="w-3.5 h-3.5 text-blue-400" />
+                    Точка входа (Entry)
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-950 text-blue-300 border border-blue-800 font-bold">
+                    {forecast.tradePlan.action === 'BUY' ? 'LONG' : forecast.tradePlan.action === 'SELL' ? 'SHORT' : 'RANGE'}
+                  </span>
+                </div>
+                <div className="text-xl font-bold text-white mt-1">
+                  ${forecast.tradePlan.entryPrice.toFixed(3)}
+                  <span className="text-xs text-slate-400 font-normal ml-1">/ MMBtu</span>
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Зона набора: <strong className="text-slate-200">${forecast.tradePlan.entryRange.low.toFixed(3)} – ${forecast.tradePlan.entryRange.high.toFixed(3)}</strong>
+                </div>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-slate-800/70 text-[10px] text-slate-400 font-sans leading-snug">
+                {forecast.tradePlan.entryCondition}
+              </div>
+            </div>
+
+            {/* 2. Take-Profit */}
+            <div className="bg-slate-900/90 border border-emerald-900/50 rounded-lg p-3.5 flex flex-col justify-between hover:border-emerald-700/60 transition-colors bg-gradient-to-b from-slate-900/90 to-emerald-950/20">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="uppercase text-[10px] tracking-wider text-emerald-400 flex items-center gap-1 font-semibold">
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                    Тейк-профит (TP)
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                    +{forecast.tradePlan.takeProfitPercent}%
+                  </span>
+                </div>
+                <div className="text-xl font-bold text-emerald-400 mt-1">
+                  ${forecast.tradePlan.takeProfit.toFixed(3)}
+                  <span className="text-xs text-emerald-500/90 font-normal ml-1.5">
+                    (+${forecast.tradePlan.takeProfitDelta.toFixed(3)})
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Цель TP2 (расшир.): <strong className="text-emerald-300">${forecast.tradePlan.takeProfit2.toFixed(3)}</strong>
+                </div>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-slate-800/70 text-[10px] text-emerald-300/80 font-sans leading-snug">
+                Фиксация 50% объема на TP1, перенос стопа в безубыток.
+              </div>
+            </div>
+
+            {/* 3. Stop-Loss */}
+            <div className="bg-slate-900/90 border border-rose-900/50 rounded-lg p-3.5 flex flex-col justify-between hover:border-rose-700/60 transition-colors bg-gradient-to-b from-slate-900/90 to-rose-950/20">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="uppercase text-[10px] tracking-wider text-rose-400 flex items-center gap-1 font-semibold">
+                    <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                    Стоп-лосс (SL)
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold">
+                    -{forecast.tradePlan.stopLossPercent}%
+                  </span>
+                </div>
+                <div className="text-xl font-bold text-rose-400 mt-1">
+                  ${forecast.tradePlan.stopLoss.toFixed(3)}
+                  <span className="text-xs text-rose-500/90 font-normal ml-1.5">
+                    (-${forecast.tradePlan.stopLossDelta.toFixed(3)})
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Риск: <strong className="text-rose-300">{forecast.tradePlan.stopLossTicks} пунктов</strong> ($280 / контр.)
+                </div>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-slate-800/70 text-[10px] text-rose-300/80 font-sans leading-snug">
+                Защитный выход при пробое границы локальной структуры.
+              </div>
+            </div>
+
+            {/* 4. Exit Rules & Horizon */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between hover:border-slate-700 transition-colors">
+              <div>
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                  <span className="uppercase text-[10px] tracking-wider text-slate-300 flex items-center gap-1 font-semibold">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    Выход из сделки (Exit)
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-800">
+                    Тайминг
+                  </span>
+                </div>
+                <div className="text-sm font-bold text-white mt-1 leading-snug">
+                  {forecast.tradePlan.exitHorizon}
+                </div>
+                <div className="text-[11px] text-amber-300/90 mt-1 truncate" title={forecast.tradePlan.trailingStopRule}>
+                  Трейлинг: <span className="text-slate-300 font-sans">{forecast.tradePlan.trailingStopRule.split('при')[0]}</span>
+                </div>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-slate-800/70 text-[10px] text-slate-400 font-sans leading-snug">
+                {forecast.tradePlan.riskManagementNote}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Main Verdict & Gauge (5 Cols) */}
@@ -640,6 +796,27 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
                     <br />
                     Коридор: ±$0.035 / MMBtu от цели с учётом дневной волатильности (ATR).
                   </p>
+                </div>
+              </div>
+
+              {/* 5. Trade Parameters Methodology */}
+              <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800">
+                <span className="font-bold text-slate-200 uppercase tracking-wider block mb-1.5 text-xs">
+                  5. Логика расчёта Entry, Take-Profit и Stop-Loss:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] font-sans text-slate-300">
+                  <div className="p-2.5 bg-slate-900 rounded border border-slate-800">
+                    <strong className="text-white block font-mono text-xs mb-1">Точка входа (Entry):</strong>
+                    Лимитный диапазон входа с дисконтом к споту на откате к локальной поддержке/сопротивлению.
+                  </div>
+                  <div className="p-2.5 bg-slate-900 rounded border border-slate-800">
+                    <strong className="text-emerald-400 block font-mono text-xs mb-1">Тейк-профит (TP1/TP2):</strong>
+                    TP1 на основе целевой цены модели (+1.5–2.5%). TP2 на верхней границе волатильности дня.
+                  </div>
+                  <div className="p-2.5 bg-slate-900 rounded border border-slate-800">
+                    <strong className="text-rose-400 block font-mono text-xs mb-1">Стоп-лосс (SL):</strong>
+                    Защитный стоп за экстремумом (0.028$ = 28 тиков), гарантирующий соотношение Прибыль/Риск от 1.8:1 до 2.5:1.
+                  </div>
                 </div>
               </div>
             </div>
