@@ -40,12 +40,13 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
   selectedTicker,
   onSelectTicker,
 }) => {
+  const [selectedHorizon, setSelectedHorizon] = useState<'intraday' | 'multiDay'>('intraday');
   const [tempShift, setTempShift] = useState(0);
   const [feedgasShift, setFeedgasShift] = useState(0);
   const [storageShift, setStorageShift] = useState(0);
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
 
-  const activeTicker = selectedTicker || forecast?.frontContract || 'NGV6';
+  const activeTicker = selectedTicker || forecast?.frontContract || 'NGX6';
 
   if (!forecast) {
     return (
@@ -56,6 +57,35 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
       </div>
     );
   }
+
+  // Active horizon data with fallback to root forecast
+  const activeHorizonData =
+    forecast.horizons && forecast.horizons[selectedHorizon]
+      ? forecast.horizons[selectedHorizon]
+      : {
+          horizon: selectedHorizon === 'intraday' ? ('INTRADAY' as const) : ('MULTI_DAY' as const),
+          horizonLabel: selectedHorizon === 'intraday' ? 'Интрадей (1–6 часов)' : 'На 1–2 дня (24–48 часов)',
+          signal: forecast.signal,
+          signalRussian: forecast.signalRussian,
+          color: forecast.color,
+          compositeScore: forecast.compositeScore,
+          confidencePercent: forecast.confidencePercent,
+          targetPrice: forecast.targetPrice,
+          targetRange: forecast.targetRange,
+          tradePlan: forecast.tradePlan,
+          factors: forecast.factors,
+          keyCatalysts: forecast.keyCatalysts,
+        };
+
+  const tradePlan = activeHorizonData.tradePlan || forecast.tradePlan;
+  const factors = activeHorizonData.factors || forecast.factors;
+  const keyCatalysts = activeHorizonData.keyCatalysts || forecast.keyCatalysts;
+  const targetPrice = activeHorizonData.targetPrice ?? forecast.targetPrice;
+  const targetRange = activeHorizonData.targetRange ?? forecast.targetRange;
+  const compositeScore = activeHorizonData.compositeScore ?? forecast.compositeScore;
+  const confidencePercent = activeHorizonData.confidencePercent ?? forecast.confidencePercent;
+  const signal = activeHorizonData.signal || forecast.signal;
+  const signalRussian = activeHorizonData.signalRussian || forecast.signalRussian;
 
   const handleApplySimulation = (t: number, f: number, s: number) => {
     setTempShift(t);
@@ -73,16 +103,16 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
 
   const hasSimulation = tempShift !== 0 || feedgasShift !== 0 || storageShift !== 0;
 
-  // Signal styling
-  const isBullish = forecast.signal === 'BULLISH';
-  const isBearish = forecast.signal === 'BEARISH';
+  // Signal styling for active horizon
+  const isBullish = signal === 'BULLISH';
+  const isBearish = signal === 'BEARISH';
   const signalColor = isBullish
     ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800/80'
     : isBearish
     ? 'text-rose-400 bg-rose-950/60 border-rose-800/80'
     : 'text-amber-400 bg-amber-950/60 border-amber-800/80';
 
-  const gaugePercent = Math.min(100, Math.max(0, ((forecast.compositeScore + 100) / 200) * 100));
+  const gaugePercent = Math.min(100, Math.max(0, ((compositeScore + 100) / 200) * 100));
 
   return (
     <section className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-lg backdrop-blur">
@@ -95,14 +125,14 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-white font-mono uppercase tracking-wide">
-                Внутридневной Прогноз Цены Henry Hub
+                Прогноз Цены Henry Hub &amp; План Сделки
               </h2>
               <span className="text-xs text-blue-400 font-mono font-semibold px-2 py-0.5 rounded bg-blue-950/70 border border-blue-800">
                 {activeTicker} {forecast.contractName ? `(${forecast.contractName.split(' ')[0]})` : ''}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Синтез погодных прогонов 2-4 дня, баланса запасов EIA, номинаций СПГ и потока заявок Т-Инвестиций
+              Синтез потока сделок (CVD), ATR волатильности, погодных ансамблей ECMWF/GFS и баланса EIA
             </p>
           </div>
         </div>
@@ -116,6 +146,167 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
           </strong>
         </div>
       </div>
+
+      {/* Horizon Switcher Tabs */}
+      <div className="px-6 py-2.5 bg-slate-950/95 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-slate-400 uppercase text-[11px] font-bold tracking-wider">
+            Горизонт прогнозирования:
+          </span>
+          <div className="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setSelectedHorizon('intraday')}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedHorizon === 'intraday'
+                  ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/50'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Интрадей (1–6 часов)</span>
+              {forecast.horizons?.intraday && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                    forecast.horizons.intraday.signal === 'BULLISH'
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                      : forecast.horizons.intraday.signal === 'BEARISH'
+                      ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                      : 'bg-amber-950 text-amber-400 border border-amber-800'
+                  }`}
+                >
+                  {forecast.horizons.intraday.signalRussian}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedHorizon('multiDay')}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedHorizon === 'multiDay'
+                  ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/50'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+              <span>На 1–2 дня (24–48 часов)</span>
+              {forecast.horizons?.multiDay && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                    forecast.horizons.multiDay.signal === 'BULLISH'
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                      : forecast.horizons.multiDay.signal === 'BEARISH'
+                      ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                      : 'bg-amber-950 text-amber-400 border border-amber-800'
+                  }`}
+                >
+                  {forecast.horizons.multiDay.signalRussian}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-slate-400">
+          Активен режим:{' '}
+          <strong className="text-white">
+            {selectedHorizon === 'intraday' ? 'Таймфрейм M15/H1 (Скальп/Дейтрейдинг)' : 'Таймфрейм H4/D1 (Свинг-трейдинг)'}
+          </strong>
+        </div>
+      </div>
+
+      {/* Technicals & Order Flow CVD Ribbon */}
+      {forecast.technicals && (
+        <div className="px-6 py-2 bg-slate-900/60 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* CVD Delta Meter */}
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 text-[11px] uppercase tracking-wider flex items-center gap-1">
+                <BarChart2 className="w-3.5 h-3.5 text-blue-400" />
+                <span>Дельта объёма (CVD):</span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-emerald-400 font-bold">{forecast.technicals.buyerAdvantagePercent}%</span>
+                <div className="w-16 h-2 bg-slate-800 rounded-full overflow-hidden flex">
+                  <div
+                    className="bg-emerald-500 h-full transition-all"
+                    style={{ width: `${forecast.technicals.buyerAdvantagePercent}%` }}
+                  />
+                  <div
+                    className="bg-rose-500 h-full transition-all"
+                    style={{ width: `${forecast.technicals.sellerAdvantagePercent}%` }}
+                  />
+                </div>
+                <span className="text-rose-400 font-bold">{forecast.technicals.sellerAdvantagePercent}%</span>
+                <span
+                  className={`text-[10px] px-1 rounded font-bold ${
+                    forecast.technicals.volumeDeltaPercent >= 0
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                      : 'bg-rose-950 text-rose-400 border border-rose-800'
+                  }`}
+                >
+                  {forecast.technicals.volumeDeltaPercent >= 0 ? '+' : ''}
+                  {forecast.technicals.volumeDeltaPercent}%
+                </span>
+              </div>
+            </div>
+
+            {/* ATR-14 */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-[11px]">ATR(14):</span>
+              <strong className="text-amber-300 font-bold">${forecast.technicals.atr14.toFixed(3)}</strong>
+              <span className="text-[10px] text-slate-500 font-sans">
+                ({Math.round(forecast.technicals.atr14 * 1000)} пунктов шума)
+              </span>
+            </div>
+
+            {/* VWAP */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-[11px]">VWAP:</span>
+              <strong className="text-cyan-300 font-bold">${forecast.technicals.vwap.toFixed(3)}</strong>
+              <span
+                className={`text-[10px] ${
+                  forecast.currentPrice >= forecast.technicals.vwap ? 'text-emerald-400' : 'text-rose-400'
+                }`}
+              >
+                ({forecast.currentPrice >= forecast.technicals.vwap ? 'выше' : 'ниже'})
+              </span>
+            </div>
+
+            {/* RSI-14 */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-[11px]">RSI(14):</span>
+              <strong
+                className={
+                  forecast.technicals.rsi14 >= 70
+                    ? 'text-rose-400'
+                    : forecast.technicals.rsi14 <= 30
+                    ? 'text-emerald-400'
+                    : 'text-slate-200'
+                }
+              >
+                {forecast.technicals.rsi14}
+              </strong>
+            </div>
+          </div>
+
+          {/* Regime Badge */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400 text-[11px]">Структура:</span>
+            <span
+              className={`text-[11px] px-2 py-0.5 rounded font-bold border ${
+                forecast.technicals.trendRegime === 'TRENDING_UP'
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                  : forecast.technicals.trendRegime === 'TRENDING_DOWN'
+                  ? 'bg-rose-950 text-rose-300 border-rose-800'
+                  : 'bg-amber-950 text-amber-300 border-amber-800'
+              }`}
+            >
+              {forecast.technicals.trendRegimeRussian}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Active Futures Contract Selector Bar */}
       <div className="px-6 py-2.5 bg-slate-950/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
@@ -209,7 +400,7 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
       </div>
 
       {/* Trade Parameters & Risk Execution Section */}
-      {forecast.tradePlan && (
+      {tradePlan && (
         <div className="px-6 pt-5 pb-2 border-b border-slate-800/80 bg-slate-950/40">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
             <div className="flex items-center gap-2.5">
@@ -219,22 +410,22 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
-                    Параметры Сделки и Управление Риском
+                    Параметры Сделки и Управление Риском ({activeHorizonData.horizonLabel})
                   </h3>
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold border ${
-                      forecast.tradePlan.action === 'BUY'
+                      tradePlan.action === 'BUY'
                         ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
-                        : forecast.tradePlan.action === 'SELL'
+                        : tradePlan.action === 'SELL'
                         ? 'bg-rose-950 text-rose-300 border-rose-700'
                         : 'bg-amber-950 text-amber-300 border-amber-700'
                     }`}
                   >
-                    {forecast.tradePlan.actionRussian}
+                    {tradePlan.actionRussian}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Расчётные уровни входа, фиксации прибыли (TP1 / TP2), защитного стопа (SL) и тайминга выхода для фьючерса {activeTicker}
+                  Расчётные уровни входа, фиксации прибыли (TP1 / TP2), динамического стопа (SL на основе ATR) и горизонта выхода для фьючерса {activeTicker}
                 </p>
               </div>
             </div>
@@ -244,7 +435,7 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
               <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-2">
                 <span className="text-slate-400 text-[11px]">Соотношение R:R:</span>
                 <span className="text-white font-bold text-sm">
-                  {forecast.tradePlan.riskRewardRatio} : 1
+                  {tradePlan.riskRewardRatio} : 1
                 </span>
                 <span className="text-[10px] text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-1.5 py-0.2 rounded font-semibold">
                   Прибыль / Риск
@@ -264,19 +455,19 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
                     Точка входа (Entry)
                   </span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-950 text-blue-300 border border-blue-800 font-bold">
-                    {forecast.tradePlan.action === 'BUY' ? 'LONG' : forecast.tradePlan.action === 'SELL' ? 'SHORT' : 'RANGE'}
+                    {tradePlan.action === 'BUY' ? 'LONG' : tradePlan.action === 'SELL' ? 'SHORT' : 'RANGE'}
                   </span>
                 </div>
                 <div className="text-xl font-bold text-white mt-1">
-                  ${forecast.tradePlan.entryPrice.toFixed(3)}
+                  ${tradePlan.entryPrice.toFixed(3)}
                   <span className="text-xs text-slate-400 font-normal ml-1">/ MMBtu</span>
                 </div>
                 <div className="text-[11px] text-slate-400 mt-1">
-                  Зона набора: <strong className="text-slate-200">${forecast.tradePlan.entryRange.low.toFixed(3)} – ${forecast.tradePlan.entryRange.high.toFixed(3)}</strong>
+                  Зона набора: <strong className="text-slate-200">${tradePlan.entryRange.low.toFixed(3)} – ${tradePlan.entryRange.high.toFixed(3)}</strong>
                 </div>
               </div>
               <div className="mt-2.5 pt-2 border-t border-slate-800/70 text-[10px] text-slate-400 font-sans leading-snug">
-                {forecast.tradePlan.entryCondition}
+                {tradePlan.entryCondition}
               </div>
             </div>
 
@@ -289,21 +480,21 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
                     Тейк-профит (TP)
                   </span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
-                    +{forecast.tradePlan.takeProfitPercent}%
+                    +{tradePlan.takeProfitPercent}%
                   </span>
                 </div>
                 <div className="text-xl font-bold text-emerald-400 mt-1">
-                  ${forecast.tradePlan.takeProfit.toFixed(3)}
+                  ${tradePlan.takeProfit.toFixed(3)}
                   <span className="text-xs text-emerald-500/90 font-normal ml-1.5">
-                    (+${forecast.tradePlan.takeProfitDelta.toFixed(3)})
+                    (+${tradePlan.takeProfitDelta.toFixed(3)})
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400 mt-1">
-                  Цель TP2 (расшир.): <strong className="text-emerald-300">${forecast.tradePlan.takeProfit2.toFixed(3)}</strong>
+                  Цель TP2 (расшир.): <strong className="text-emerald-300">${tradePlan.takeProfit2.toFixed(3)}</strong>
                 </div>
               </div>
               <div className="mt-2.5 pt-2 border-t border-slate-800/70 text-[10px] text-emerald-300/80 font-sans leading-snug">
-                Фиксация 50% объема на TP1, перенос стопа в безубыток.
+                Фиксация 50% объема на TP1, перенос стопа в безубыток при достижении TP1.
               </div>
             </div>
 
@@ -316,21 +507,21 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
                     Стоп-лосс (SL)
                   </span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold">
-                    -{forecast.tradePlan.stopLossPercent}%
+                    -{tradePlan.stopLossPercent}%
                   </span>
                 </div>
                 <div className="text-xl font-bold text-rose-400 mt-1">
-                  ${forecast.tradePlan.stopLoss.toFixed(3)}
+                  ${tradePlan.stopLoss.toFixed(3)}
                   <span className="text-xs text-rose-500/90 font-normal ml-1.5">
-                    (-${forecast.tradePlan.stopLossDelta.toFixed(3)})
+                    (-${tradePlan.stopLossDelta.toFixed(3)})
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400 mt-1">
-                  Риск: <strong className="text-rose-300">{forecast.tradePlan.stopLossTicks} пунктов</strong> ($280 / контр.)
+                  Риск: <strong className="text-rose-300">{tradePlan.stopLossTicks} пунктов</strong> (${(tradePlan.stopLossTicks * 10).toFixed(0)} / контр.)
                 </div>
               </div>
               <div className="mt-2.5 pt-2 border-t border-slate-800/70 text-[10px] text-rose-300/80 font-sans leading-snug">
-                Защитный выход при пробое границы локальной структуры.
+                Динамический защитный стоп с запасом на рыночный шум по ATR.
               </div>
             </div>
 
@@ -347,14 +538,14 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
                   </span>
                 </div>
                 <div className="text-sm font-bold text-white mt-1 leading-snug">
-                  {forecast.tradePlan.exitHorizon}
+                  {tradePlan.exitHorizon}
                 </div>
-                <div className="text-[11px] text-amber-300/90 mt-1 truncate" title={forecast.tradePlan.trailingStopRule}>
-                  Трейлинг: <span className="text-slate-300 font-sans">{forecast.tradePlan.trailingStopRule.split('при')[0]}</span>
+                <div className="text-[11px] text-amber-300/90 mt-1 truncate" title={tradePlan.trailingStopRule}>
+                  Трейлинг: <span className="text-slate-300 font-sans">{tradePlan.trailingStopRule.split('при')[0]}</span>
                 </div>
               </div>
               <div className="mt-2.5 pt-2 border-t border-slate-800/70 text-[10px] text-slate-400 font-sans leading-snug">
-                {forecast.tradePlan.riskManagementNote}
+                {tradePlan.riskManagementNote}
               </div>
             </div>
           </div>
@@ -377,11 +568,11 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
                   <HelpCircle className="w-3.5 h-3.5" />
                 </button>
                 <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
-                  Внутридневной сигнал
+                  {activeHorizonData.horizonLabel}
                 </span>
               </div>
               <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-slate-900/80 border border-slate-700">
-                Уверенность: {forecast.confidencePercent}%
+                Уверенность: {confidencePercent}%
               </span>
             </div>
 
@@ -393,13 +584,13 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
               </div>
               <div>
                 <div className="text-2xl font-black font-mono tracking-tight text-white uppercase">
-                  {forecast.signalRussian}
+                  {signalRussian}
                 </div>
                 <div className="text-xs font-mono text-slate-300 mt-0.5">
                   Композитный индекс импульса:{' '}
                   <strong className={isBullish ? 'text-emerald-300' : isBearish ? 'text-rose-300' : 'text-amber-300'}>
-                    {forecast.compositeScore > 0 ? '+' : ''}
-                    {forecast.compositeScore}
+                    {compositeScore > 0 ? '+' : ''}
+                    {compositeScore}
                   </strong>{' '}
                   / 100
                 </div>
@@ -409,14 +600,14 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
             {/* Target Price Metrics */}
             <div className="mt-5 grid grid-cols-2 gap-3 pt-4 border-t border-slate-800/80 font-mono">
               <div>
-                <span className="text-[11px] text-slate-400 block uppercase">Цель дня ({activeTicker}):</span>
-                <span className="text-xl font-bold text-white">${forecast.targetPrice.toFixed(3)}</span>
+                <span className="text-[11px] text-slate-400 block uppercase">Цель горизонта ({activeTicker}):</span>
+                <span className="text-xl font-bold text-white">${targetPrice.toFixed(3)}</span>
                 <span className="text-xs text-slate-400 ml-1">/ MMBtu</span>
               </div>
               <div>
                 <span className="text-[11px] text-slate-400 block uppercase">Диапазон волатильности:</span>
                 <span className="text-sm font-semibold text-slate-200">
-                  ${forecast.targetRange.low.toFixed(3)} – ${forecast.targetRange.high.toFixed(3)}
+                  ${targetRange.low.toFixed(3)} – ${targetRange.high.toFixed(3)}
                 </span>
                 <span className="text-[10px] text-slate-400 block">
                   (база {activeTicker}: ${forecast.currentPrice.toFixed(3)})
@@ -442,10 +633,10 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
             <div className="flex justify-between items-center mt-3 text-xs text-slate-400">
               <span className="flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                <span>Баланс факторов: {forecast.factors.length} метрик</span>
+                <span>Баланс факторов: {factors.length} метрик</span>
               </span>
               <span className="text-slate-300 font-medium">
-                Сдвиг: {(((forecast.targetPrice - forecast.currentPrice) / forecast.currentPrice) * 100).toFixed(2)}%
+                Сдвиг: {(((targetPrice - forecast.currentPrice) / forecast.currentPrice) * 100).toFixed(2)}%
               </span>
             </div>
           </div>
@@ -454,10 +645,10 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
           <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3.5">
             <div className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 mb-2">
               <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Главные рыночные триггеры сессии:</span>
+              <span>Главные рыночные триггеры ({activeHorizonData.horizonLabel}):</span>
             </div>
             <ul className="space-y-1.5 text-xs text-slate-300">
-              {forecast.keyCatalysts.map((cat, idx) => (
+              {keyCatalysts.map((cat, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-blue-400 font-mono select-none">▸</span>
                   <span>{cat}</span>
@@ -473,13 +664,13 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
           <div className="bg-slate-950 border border-slate-800 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
-                Декомпозиция весов модели прогноза
+                Декомпозиция весов модели ({activeHorizonData.horizonLabel})
               </h3>
               <span className="text-[11px] text-slate-400 font-mono">Вес: 100%</span>
             </div>
 
             <div className="space-y-3 font-mono">
-              {forecast.factors.map((f, i) => {
+              {factors.map((f, i) => {
                 const scorePositive = f.score >= 0;
                 return (
                   <div key={i} className="border-b border-slate-800/60 pb-2.5 last:border-0 last:pb-0">
@@ -696,126 +887,48 @@ export const IntradayForecastCard: React.FC<IntradayForecastCardProps> = ({
                 </p>
               </div>
 
-              {/* 2. Mathematical Formula */}
+              {/* 2. Dual-Horizon Architecture */}
               <div className="bg-slate-950 p-4 rounded-lg border border-slate-800">
                 <div className="flex items-center gap-2 mb-2 text-slate-200 font-bold uppercase tracking-wider">
                   <Zap className="w-4 h-4 text-amber-400" />
-                  <span>Формула композитного индекса импульса (Score)</span>
+                  <span>Двухгоризонтная архитектура модели (Интрадей vs 1–2 Дня)</span>
                 </div>
-                <div className="p-3 bg-slate-900 rounded border border-slate-800 font-mono text-[11px] text-cyan-300 overflow-x-auto">
-                  Score = (0.35 × Погода) + (0.25 × Запасы EIA) + (0.15 × Номинации СПГ) + (0.15 × Добыча) + (0.10 × Стакан Т-Инвест)
+                <div className="space-y-2 text-[11px] font-sans text-slate-300">
+                  <div className="p-2.5 bg-slate-900 rounded border border-slate-800">
+                    <strong className="text-amber-300 font-mono block text-xs mb-1">
+                      1. Горизонт «Интрадей (1–6 часов)» — Таймфрейм M15/H1:
+                    </strong>
+                    Фокусируется на микроструктуре рынка: дельта покупателей/продавцов по реальным тикам (CVD 30%), технический импульс EMA9/EMA21/RSI14 (25%), оперативная погодная сводка дня (25%), суточный отбор СПГ (15%) и фоновые запасы (5%). Стоп и тейк рассчитываются адаптивно по 14-периодному ATR.
+                  </div>
+                  <div className="p-2.5 bg-slate-900 rounded border border-slate-800">
+                    <strong className="text-cyan-300 font-mono block text-xs mb-1">
+                      2. Горизонт «На 1–2 дня (24–48 часов)» — Таймфрейм H4/D1:
+                    </strong>
+                    Фокусируется на фундаментальном балансе: спред моделей ECMWF vs GFS и траектория HDD на дни 2–4 (45%), профицит хранилищ EIA над 5-летней нормой (25%), сухая добыча США (15%) и загрузка экспортных терминалов СПГ (15%). Рассчитан на позиционную отработку фундаментала.
+                  </div>
                 </div>
-                <p className="text-[11px] text-slate-400 font-sans mt-2">
-                  Каждый фактор нормализуется по шкале от -100 (максимально медвежий) до +100 (максимально бычий) и взвешивается в соответствии с институциональной практикой газовых трейдеров.
-                </p>
               </div>
 
-              {/* 3. Weight Decomposition Table */}
+              {/* 3. ATR Dynamic Risk Management */}
               <div className="bg-slate-950 p-4 rounded-lg border border-slate-800">
-                <span className="font-bold text-slate-200 uppercase tracking-wider block mb-3">
-                  Распределение весов и вклад каждого фактора:
+                <span className="font-bold text-slate-200 uppercase tracking-wider block mb-2 text-xs">
+                  3. Управление риском и адаптивный стоп (ATR Protection):
                 </span>
-                <div className="space-y-2.5">
-                  <div className="flex items-start justify-between pb-2 border-b border-slate-800/80">
-                    <div>
-                      <div className="font-semibold text-white">1. Погода GFS и ECMWF (Вес: 35%)</div>
-                      <div className="text-[11px] text-slate-400 font-sans">
-                        Сравнение прогонов на дни 2–4, расчёт Heating Degree Days (HDD base 18.3°C) для Северо-Востока (NY-PA) и Центра США (Chicago Hub).
-                      </div>
-                    </div>
-                    <span className="font-bold text-right ml-4 shrink-0 text-slate-200">
-                      {forecast.factors[0]?.score > 0 ? '+' : ''}{forecast.factors[0]?.score} б.
-                    </span>
-                  </div>
-
-                  <div className="flex items-start justify-between pb-2 border-b border-slate-800/80">
-                    <div>
-                      <div className="font-semibold text-white">2. Запасы газа в ПХГ EIA (Вес: 25%)</div>
-                      <div className="text-[11px] text-slate-400 font-sans">
-                        Отклонение объёма газа в хранилищах Lower 48 от 5-летней средней. Профицит свыше +80 Bcf оказывает давление на котировки.
-                      </div>
-                    </div>
-                    <span className="font-bold text-right ml-4 shrink-0 text-slate-200">
-                      {forecast.factors[1]?.score > 0 ? '+' : ''}{forecast.factors[1]?.score} б.
-                    </span>
-                  </div>
-
-                  <div className="flex items-start justify-between pb-2 border-b border-slate-800/80">
-                    <div>
-                      <div className="font-semibold text-white">3. Номинации СПГ (Feedgas) (Вес: 15%)</div>
-                      <div className="text-[11px] text-slate-400 font-sans">
-                        Суточный отбор 8 экспортными терминалами (Sabine Pass, Freeport, Corpus Christi и др.). Уровень свыше 14.0 Bcf/d поддерживает котировки.
-                      </div>
-                    </div>
-                    <span className="font-bold text-right ml-4 shrink-0 text-slate-200">
-                      {forecast.factors[2]?.score > 0 ? '+' : ''}{forecast.factors[2]?.score} б.
-                    </span>
-                  </div>
-
-                  <div className="flex items-start justify-between pb-2 border-b border-slate-800/80">
-                    <div>
-                      <div className="font-semibold text-white">4. Сухая добыча в США (Вес: 15%)</div>
-                      <div className="text-[11px] text-slate-400 font-sans">
-                        Объём добычи по данным EIA и газопроводов (~103.8 Bcf/d) плюс чистый импорт из Канады.
-                      </div>
-                    </div>
-                    <span className="font-bold text-right ml-4 shrink-0 text-slate-200">
-                      {forecast.factors[3]?.score > 0 ? '+' : ''}{forecast.factors[3]?.score} б.
-                    </span>
-                  </div>
-
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="font-semibold text-white">5. Биржевой стакан Т-Инвестиций (Вес: 10%)</div>
-                      <div className="text-[11px] text-slate-400 font-sans">
-                        Внутридневной баланс покупок/продаж, ликвидность ближайшего фьючерса на MOEX и близость к уровням поддержки/сопротивления.
-                      </div>
-                    </div>
-                    <span className="font-bold text-right ml-4 shrink-0 text-slate-200">
-                      {forecast.factors[4]?.score > 0 ? '+' : ''}{forecast.factors[4]?.score} б.
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. Target Price & Thresholds */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800">
-                  <span className="font-bold text-slate-200 block mb-1">Пороги решений:</span>
-                  <ul className="space-y-1 text-[11px] font-sans text-slate-400">
-                    <li><strong className="text-emerald-400 font-mono">Score ≥ +18</strong>: Бычий сигнал (покупка)</li>
-                    <li><strong className="text-rose-400 font-mono">Score ≤ -18</strong>: Медвежий сигнал (продажа)</li>
-                    <li><strong className="text-amber-400 font-mono">-18 &lt; Score &lt; +18</strong>: Нейтрально / флэт</li>
-                  </ul>
-                </div>
-
-                <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800">
-                  <span className="font-bold text-slate-200 block mb-1">Расчёт целевой цены:</span>
-                  <p className="text-[11px] font-sans text-slate-400">
-                    <code className="text-cyan-300 font-mono">Target = Spot × (1 + Score/100 × 3.8%)</code>
-                    <br />
-                    Коридор: ±$0.035 / MMBtu от цели с учётом дневной волатильности (ATR).
-                  </p>
-                </div>
-              </div>
-
-              {/* 5. Trade Parameters Methodology */}
-              <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800">
-                <span className="font-bold text-slate-200 uppercase tracking-wider block mb-1.5 text-xs">
-                  5. Логика расчёта Entry, Take-Profit и Stop-Loss:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] font-sans text-slate-300">
+                <p className="text-[11px] font-sans text-slate-300 leading-relaxed mb-2">
+                  Предыдущие фиксированные стопы (28 тиков) часто выбивались случайным рыночным шумом природного газа. Теперь уровень Stop-Loss динамически привязан к текущей волатильности:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono">
                   <div className="p-2.5 bg-slate-900 rounded border border-slate-800">
-                    <strong className="text-white block font-mono text-xs mb-1">Точка входа (Entry):</strong>
-                    Лимитный диапазон входа с дисконтом к споту на откате к локальной поддержке/сопротивлению.
+                    <strong className="text-amber-400 block mb-0.5">Интрадей SL = 1.35 × ATR(14)</strong>
+                    <span className="text-slate-400 font-sans text-[10px]">
+                      Учитывает размах свечей за последние 3.5 часа, отсекая ложные проколы. Тейк-профит: 2.15 × ATR (R:R &gt; 1.6:1).
+                    </span>
                   </div>
                   <div className="p-2.5 bg-slate-900 rounded border border-slate-800">
-                    <strong className="text-emerald-400 block font-mono text-xs mb-1">Тейк-профит (TP1/TP2):</strong>
-                    TP1 на основе целевой цены модели (+1.5–2.5%). TP2 на верхней границе волатильности дня.
-                  </div>
-                  <div className="p-2.5 bg-slate-900 rounded border border-slate-800">
-                    <strong className="text-rose-400 block font-mono text-xs mb-1">Стоп-лосс (SL):</strong>
-                    Защитный стоп за экстремумом (0.028$ = 28 тиков), гарантирующий соотношение Прибыль/Риск от 1.8:1 до 2.5:1.
+                    <strong className="text-cyan-400 block mb-0.5">Свинг 1-2Д SL = 2.0 × ATR(14)</strong>
+                    <span className="text-slate-400 font-sans text-[10px]">
+                      Даёт запас на суточные колебания. Тейк-профит: 3.3 × ATR (R:R &gt; 1.65:1), цель TP2 до 5.2 × ATR.
+                    </span>
                   </div>
                 </div>
               </div>

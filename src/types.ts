@@ -223,6 +223,37 @@ export interface TradeParameters {
   riskManagementNote: string;
 }
 
+export interface TechnicalMetrics {
+  atr14: number;
+  rsi14: number;
+  volumeDeltaPercent: number;
+  buyerAdvantagePercent: number;
+  sellerAdvantagePercent: number;
+  vwap: number;
+  trendRegime: 'TRENDING_UP' | 'TRENDING_DOWN' | 'CONSOLIDATION';
+  trendRegimeRussian: string;
+  ema9: number;
+  ema21: number;
+}
+
+export interface HorizonForecast {
+  horizon: 'INTRADAY' | 'MULTI_DAY';
+  horizonLabel: string;
+  signal: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  signalRussian: string;
+  color: string;
+  compositeScore: number;
+  confidencePercent: number;
+  targetPrice: number;
+  targetRange: {
+    low: number;
+    high: number;
+  };
+  tradePlan: TradeParameters;
+  factors: ForecastFactor[];
+  keyCatalysts: string[];
+}
+
 export interface IntradayForecast {
   signal: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   signalRussian: string;
@@ -241,6 +272,11 @@ export interface IntradayForecast {
   tradePlan: TradeParameters;
   keyCatalysts: string[];
   factors: ForecastFactor[];
+  technicals?: TechnicalMetrics;
+  horizons?: {
+    intraday: HorizonForecast;
+    multiDay: HorizonForecast;
+  };
   scenarioInputs: {
     customTempShiftF: number;
     customFeedgasShiftBcfd: number;
